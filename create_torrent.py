@@ -1,9 +1,10 @@
-import logging
+﻿import logging
 import os.path
 import sys
 import time
 from hashlib import sha1 as sha
 from bencode import bdecode, bencode
+import argparse
 
 from search_dht import search_dht_hashes
 from search_dht import search_dht_hashes2
@@ -256,6 +257,18 @@ def brute_force(path):
 
 if __name__ == "__main__":
     # path = "/home/a/random_torr/zero1024m"
+
+    #parser = argparse.ArgumentParser(description="This program calculates different info hashes of given files and searches them in database or DHT")
+    #parser.add_argument("filelist", help="Specify a file containing list of paths to calculate info hashes and compare")
+    #parser.add_argument("-d", "--dht", action="store_true", default=False, help="Search info hashes in DHT as well")
+    #args = parser.parse_args()
+    #filelist = args.filelist
+
+    #print filelist
+
+    #if args.dht == True:
+    #    print "search in DHT"
+
     path = "/home/a/PycharmProjects/torrents/Pulp.Fiction.1994.BDRip-AVC.DUB.AVO.ENG.Subs.mkv"
     if len(sys.argv) == 2:
         path = sys.argv[1]
