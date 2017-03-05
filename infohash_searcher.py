@@ -234,22 +234,21 @@ def make_query(info_candidates):
 
 def brute_force(path, use_dht=False):
     not_found_in_db = []
+    piece_length_variants = []
+    probable_variants = {1048576: [16384], 2097152:[16384,65536,32768], 4194304:[65536,16384,32768],
+                         8388608:[65536,16384,32768], 16777216:[65536,16384],
+                         33554432:[65536,32768,262144], 67108864:[65536,131072],
+                         134217728:[131072,262144,32768], 268435456:[262144,131072,524288],
+                         536870912:[524288, 262144,1048576], 1073741824:[1048576, 524288, 262144],
+                         2147483648:[2097152,1048576,524288], 4294967296:[4194304,2097152,1048576],
+                         8589934592:[4194304, 8388608, 2097152], 17179869184:[4194304, 8388608, 2097152],
+                         34359738368:[4194304, 8388608, 2097152], 68719476736:[4194304, 8388608, 16777216],
+                         137438953472:[16777216, 8388608, 4194304], 274877906944:[4194304]}
     total_size = calc_length(path)
-    if total_size < 20971520:  # 20M
-        piece_length_variants = [16384, 32768, 65536]
-    elif total_size < 157286400:  # 150M
-        piece_length_variants = [65536, 131072, 262144]
-    elif total_size < 576716800:  # 550M
-        piece_length_variants = [524288, 1048576, 262144]
-    elif total_size < 1572864000:  # 1500M
-        piece_length_variants = [1048576, 2097152, 524288]
-        # piece_length_variants = [2097152,1048576, 524288]
-    elif total_size < 2621440000:  # 2500M
-        piece_length_variants = [2097152, 1048576, 4194304]
-    elif total_size < 5767168000:  # 5500M
-        piece_length_variants = [2097152, 4194304, 8388608]
-    else:
-        piece_length_variants = [8388608, 4194304, 16777216]
+    for key, value in sorted(probable_variants.iteritems()):
+        if total_size <= key:
+            piece_length_variants = value
+            break
 
     for piece_length in piece_length_variants:
         info = makeinfo(path, piece_length)
