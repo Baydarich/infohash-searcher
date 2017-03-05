@@ -1,21 +1,24 @@
-﻿import logging
 import os.path
 import sys
-import time
 from hashlib import sha1 as sha
-from bencode import bdecode, bencode
+from bencode import bencode
+from mysql_config import MYSQL_DB, MYSQL_HOST, MYSQL_PSWD, MYSQL_USER
+import MySQLdb
+import binascii, base64
 import argparse
-
-from search_dht import search_dht_hashes
 from search_dht import search_dht_hashes2
-
 
 noncharacter_translate = {}
 ignore = ['core', 'CVS', 'Thumbs.db', 'desktop.ini']
 
+# MySQL connection configuration
+db = MySQLdb.connect(host=MYSQL_HOST, user=MYSQL_USER, passwd=MYSQL_PSWD, db=MYSQL_DB)
+cur = db.cursor()
+
 
 def get_filesystem_encoding():
     return sys.getfilesystemencoding()
+
 
 def decode_from_filesystem(path):
     encoding = get_filesystem_encoding()
@@ -27,6 +30,7 @@ def decode_from_filesystem(path):
         decoded_path = path.decode(encoding)
 
     return decoded_path
+
 
 def makeinfo(path, piece_length, name=None, content_type=None, private=False):
     # HEREDAVE. If path is directory, how do we assign content type?
@@ -47,6 +51,7 @@ def makeinfo(path, piece_length, name=None, content_type=None, private=False):
                             'unicode values that do not correspond to '
                             'characters.' % name)
         return u.encode('utf-8')
+
     path = os.path.abspath(path)
     piece_count = 0
     if os.path.isdir(path):
@@ -126,7 +131,7 @@ def makeinfo(path, piece_length, name=None, content_type=None, private=False):
             p += piece_length
             if p > size:
                 p = size
-            # progress(piece_count, num_pieces)
+                # progress(piece_count, num_pieces)
         h.close()
         if content_type is not None:
             return {'pieces': ''.join(pieces),
@@ -215,21 +220,31 @@ def calc_length(path):
 
 
 def make_query(info_candidates):
-    pass
+    for h in info_candidates:
+        cur.execute("SELECT * from tpb_torrent WHERE magnet=%s", [base64.b64encode(bytearray.fromhex(h))])
+        r = cur.fetchone()
+        if r:
+            return r[1]
+        else:
+            cur.execute("SELECT * from rt_torrent WHERE magnet=%s", (h,))
+            r = cur.fetchone()
+            if r: return r[1]
+    return None
 
 
-def brute_force(path):
+def brute_force(path, use_dht=False):
+    not_found_in_db = []
     total_size = calc_length(path)
-    if total_size < 20971520:   # 20M
+    if total_size < 20971520:  # 20M
         piece_length_variants = [16384, 32768, 65536]
-    elif total_size < 157286400:    # 150M
+    elif total_size < 157286400:  # 150M
         piece_length_variants = [65536, 131072, 262144]
-    elif total_size < 576716800:    # 550M
+    elif total_size < 576716800:  # 550M
         piece_length_variants = [524288, 1048576, 262144]
-    elif total_size < 1572864000:    # 1500M
+    elif total_size < 1572864000:  # 1500M
         piece_length_variants = [1048576, 2097152, 524288]
         # piece_length_variants = [2097152,1048576, 524288]
-    elif total_size < 2621440000:    # 2500M
+    elif total_size < 2621440000:  # 2500M
         piece_length_variants = [2097152, 1048576, 4194304]
     elif total_size < 5767168000:  # 5500M
         piece_length_variants = [2097152, 4194304, 8388608]
@@ -241,38 +256,40 @@ def brute_force(path):
         info_candidates = calc_hashes(info)
 
         # debug
-        print info_candidates
-        print
+        # print info_candidates
+        # print
 
-        result = search_dht_hashes2(info_candidates)
-        if result:
-            return result
+        print "Trying piece length: %s..." % piece_length
 
         result = make_query(info_candidates)
+        #result = False
         if result:
+            print "InfoHash found: %s for %s" % (result, path)
+            return result
+        else:
+            not_found_in_db.append(info_candidates)
+
+    if use_dht:
+        print "No results in DB. Trying DHT.."
+        result = search_dht_hashes2([j for i in not_found_in_db for j in i])
+        if result:
+            print "InfoHash found: %s for %s" % (result, path)
             return result
 
     return "No matches found"
 
 
 if __name__ == "__main__":
+
     # path = "/home/a/random_torr/zero1024m"
-
-    #parser = argparse.ArgumentParser(description="This program calculates different info hashes of given files and searches them in database or DHT")
-    #parser.add_argument("filelist", help="Specify a file containing list of paths to calculate info hashes and compare")
-    #parser.add_argument("-d", "--dht", action="store_true", default=False, help="Search info hashes in DHT as well")
-    #args = parser.parse_args()
-    #filelist = args.filelist
-
-    #print filelist
-
-    #if args.dht == True:
-    #    print "search in DHT"
-
-    path = "/home/a/PycharmProjects/torrents/Pulp.Fiction.1994.BDRip-AVC.DUB.AVO.ENG.Subs.mkv"
-    if len(sys.argv) == 2:
-        path = sys.argv[1]
-    else:
-        print "Please specify a file or folder to inspect"
-        # sys.exit()
-    print brute_force(path)
+    parser = argparse.ArgumentParser(description="This program calculates different info hashes of given files and searches them in database or DHT")
+    parser.add_argument("filepath", help="Specify a file or folder to calculate info hashes and compare")
+    parser.add_argument("-d", "--dht", action="store_true", default=False, help="Search info hashes in DHT as well")
+    args = parser.parse_args()
+    filepath = args.filepath
+    use_dht = False
+    if args.dht == True:
+        use_dht = True
+    print filepath
+    #filepath = '/tmp/Pulp.Fiction.1994.BDRip-AVC.DUB.AVO.ENG.Subs.mkv'
+    brute_force(filepath, use_dht)

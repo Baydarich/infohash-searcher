@@ -2,7 +2,7 @@ from bencode import bdecode, bencode
 from hashlib import sha1
 
 #filename1 = "/home/a/random_torr/torrents/transmission/torr_fold.torrent"
-filename1 = "[rutracker.org].t1149720-pulp-fiction.torrent"
+filename1 = "/home/horn/Downloads/[rutracker.org].t5218650.torrent"
 filename2 = "kris_kaspersky.rar-deluge-32.torrent"
 with open(filename1) as _file:
     info_orig = bdecode(_file.read())['info']

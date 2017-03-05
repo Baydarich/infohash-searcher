@@ -101,9 +101,9 @@ def search_dht_hashes2(hashes):
         for hash in hashes:
             peers = dht.get_peers(binascii.a2b_hex(hash), 0, False)
             if peers:
-                print peers
+                # print peers
                 dht.stop()
-                return True
+                return hash
         sleep(2)
 
     dht.stop()
@@ -111,7 +111,7 @@ def search_dht_hashes2(hashes):
 
 
 def test():
-    a = ['1468A075C7AE4936572C39E2E5D4640659D634E2']
+    a = ['a3924d99366463f8fdb9647afafbf60b0b111f63']
 
     time1 = time.time()
     print search_dht_hashes2(a)
